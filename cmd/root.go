@@ -14,7 +14,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "strater",
 	Short: "A trading strategy scaling calculator",
-	Long:  `Strater helps you plan and analyze account and risk management strategies.`,
+	Long:  `Strater helps you plan and analyze account and risk management strategies for trading.`,
 }
 
 // Execute runs the root command
