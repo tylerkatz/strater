@@ -11,17 +11,24 @@ import (
 func ListStrategiesFromConfig(cfg *config.Config) error {
 	fmt.Println("Available Strategies:")
 	for _, s := range cfg.Strategies {
-		fmt.Printf("- %s (Profit Target: %.1f%%, Risk: %.1f%%)\n",
-			s.Name,
-			s.MonthlyProfitTarget*100,
-			s.RiskPerTrade*100)
+		fmt.Printf("- %s", s.Name)
+		if s.MonthProfitTargetPct != 0 {
+			fmt.Printf(" (Profit Target: %.1f%%)", s.MonthProfitTargetPct*100)
+		}
+		if s.TradeRiskPct != 0 {
+			fmt.Printf(" (Risk: %.1f%%)", s.TradeRiskPct*100)
+		}
+		fmt.Println()
 	}
 	return nil
 }
 
 // CLI command function
 func ListStrategies(cmd *cobra.Command, args []string) error {
-	cfgPath := config.FindConfigFile()
+	cfgPath, err := config.FindConfigFile()
+	if err != nil {
+		return err
+	}
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		return err
@@ -38,9 +45,7 @@ func AddStrategy(cfg *config.Config, name string) error {
 	}
 
 	newStrategy := config.StrategyConfig{
-		Name:                name,
-		MonthlyProfitTarget: 0.20, // Default 20%
-		RiskPerTrade:        0.02, // Default 2%
+		Name: name,
 	}
 
 	cfg.Strategies = append(cfg.Strategies, newStrategy)
@@ -66,7 +71,10 @@ func RemoveStrategyFromConfig(cfg *config.Config, name string) error {
 
 // CLI command function
 func RemoveStrategy(cmd *cobra.Command, args []string) error {
-	cfgPath := config.FindConfigFile()
+	cfgPath, err := config.FindConfigFile()
+	if err != nil {
+		return err
+	}
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		return err
@@ -82,8 +90,13 @@ func RemoveStrategy(cmd *cobra.Command, args []string) error {
 func UpdateStrategy(cfg *config.Config, name string, profitTarget, riskPerTrade float64) error {
 	for i, s := range cfg.Strategies {
 		if s.Name == name {
-			cfg.Strategies[i].MonthlyProfitTarget = profitTarget
-			cfg.Strategies[i].RiskPerTrade = riskPerTrade
+			// Only update non-zero values
+			if profitTarget != 0 {
+				cfg.Strategies[i].MonthProfitTargetPct = profitTarget
+			}
+			if riskPerTrade != 0 {
+				cfg.Strategies[i].TradeRiskPct = riskPerTrade
+			}
 			return nil
 		}
 	}
@@ -92,7 +105,10 @@ func UpdateStrategy(cfg *config.Config, name string, profitTarget, riskPerTrade 
 
 // AddStrategyCmd handles the CLI command for adding a strategy
 func AddStrategyCmd(cmd *cobra.Command, args []string) error {
-	cfgPath := config.FindConfigFile()
+	cfgPath, err := config.FindConfigFile()
+	if err != nil {
+		return err
+	}
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		return err
@@ -106,7 +122,10 @@ func AddStrategyCmd(cmd *cobra.Command, args []string) error {
 
 // RemoveStrategyCmd handles the CLI command for removing a strategy
 func RemoveStrategyCmd(cmd *cobra.Command, args []string) error {
-	cfgPath := config.FindConfigFile()
+	cfgPath, err := config.FindConfigFile()
+	if err != nil {
+		return err
+	}
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		return err
@@ -120,7 +139,10 @@ func RemoveStrategyCmd(cmd *cobra.Command, args []string) error {
 
 // UpdateStrategyCmd handles the CLI command for updating a strategy
 func UpdateStrategyCmd(cmd *cobra.Command, args []string) error {
-	cfgPath := config.FindConfigFile()
+	cfgPath, err := config.FindConfigFile()
+	if err != nil {
+		return err
+	}
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		return err

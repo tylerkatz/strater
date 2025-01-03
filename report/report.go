@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"encoding/csv"
@@ -13,6 +14,14 @@ import (
 )
 
 func Generate(plans []*strategy.Plan, format string, outputPath string) error {
+	// Create output directory if it doesn't exist
+	dir := filepath.Dir(outputPath)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create output directory: %v", err)
+		}
+	}
+
 	switch format {
 	case "csv":
 		return generateCSV(plans, outputPath)
@@ -36,7 +45,7 @@ func generateCSV(plans []*strategy.Plan, outputPath string) error {
 	defer writer.Flush()
 
 	// Write header
-	header := []string{"Month", "Starting Balance", "Ending Balance", "Profit Target", "Risk Per Trade"}
+	header := []string{"Month", "Starting Balance", "Ending Balance", "Profit Target", "Reward Per Trade", "Net Wins"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -49,7 +58,8 @@ func generateCSV(plans []*strategy.Plan, outputPath string) error {
 				fmt.Sprintf("%.2f", result.StartingBalance),
 				fmt.Sprintf("%.2f", result.EndingBalance),
 				fmt.Sprintf("%.2f", result.ProfitTarget),
-				fmt.Sprintf("%.2f", result.RiskPerTrade),
+				fmt.Sprintf("%.2f", result.RewardPerTrade),
+				strconv.Itoa(result.NetWins),
 			}
 			if err := writer.Write(row); err != nil {
 				return err
@@ -65,7 +75,7 @@ func generateXLSX(plans []*strategy.Plan, outputPath string) error {
 	defer f.Close()
 
 	// Set headers
-	headers := []string{"Month", "Starting Balance", "Ending Balance", "Profit Target", "Risk Per Trade"}
+	headers := []string{"Month", "Starting Balance", "Ending Balance", "Profit Target", "Reward Per Trade", "Net Wins"}
 	for i, header := range headers {
 		cell := fmt.Sprintf("%c1", 'A'+i)
 		f.SetCellValue("Sheet1", cell, header)
@@ -79,7 +89,8 @@ func generateXLSX(plans []*strategy.Plan, outputPath string) error {
 			f.SetCellValue("Sheet1", fmt.Sprintf("B%d", row), result.StartingBalance)
 			f.SetCellValue("Sheet1", fmt.Sprintf("C%d", row), result.EndingBalance)
 			f.SetCellValue("Sheet1", fmt.Sprintf("D%d", row), result.ProfitTarget)
-			f.SetCellValue("Sheet1", fmt.Sprintf("E%d", row), result.RiskPerTrade)
+			f.SetCellValue("Sheet1", fmt.Sprintf("E%d", row), result.RewardPerTrade)
+			f.SetCellValue("Sheet1", fmt.Sprintf("F%d", row), result.NetWins)
 			row++
 		}
 	}

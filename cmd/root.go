@@ -26,4 +26,5 @@ func init() {
 	// Add all subcommands
 	rootCmd.AddCommand(newStrategyCmd())
 	rootCmd.AddCommand(newConfigCmd())
+	rootCmd.AddCommand(newInitCmd())
 }

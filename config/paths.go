@@ -1,19 +1,16 @@
 package config
 
-// Config key paths
+// Config path prefixes
 const (
-	KeyCapitalStart      = "strat.default.capital_start"
-	KeyTradeRisk         = "strat.default.trade_risk"
-	KeyMonthProfitTarget = "strat.default.month_profit_target"
-	KeyMonthCount        = "strat.default.month_count"
+	SettingsPrefix = "settings."
+	StratPrefix    = "strat."
+	DefaultPrefix  = StratPrefix + "default."
 )
 
-// GetAvailableKeys returns a list of all available config keys
-func GetAvailableKeys() []string {
-	return []string{
-		KeyCapitalStart,
-		KeyTradeRisk,
-		KeyMonthProfitTarget,
-		KeyMonthCount,
+// GetDefaultPath returns the full config path for a default setting
+func GetDefaultPath(key string) string {
+	if key == KeySettingsOutputPath {
+		return SettingsPrefix + key
 	}
+	return DefaultPrefix + key
 }

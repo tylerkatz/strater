@@ -34,9 +34,8 @@ type MonthlyResult struct {
 	StartingBalance float64
 	EndingBalance   float64
 	ProfitTarget    float64
-	RiskPerTrade    float64
-	Withdrawal      float64
-	Transactions    []Transaction
+	RewardPerTrade  float64
+	NetWins         int
 }
 
 type Analyzer struct {
@@ -60,14 +59,17 @@ func (a *Analyzer) AnalyzeStrategy(strategyName string, months int) (*Plan, erro
 		return nil, fmt.Errorf("strategy not found: %s", strategyName)
 	}
 
+	// Initialize the plan with starting capital
 	plan := &Plan{
 		StrategyName:   strategyName,
 		InitialCapital: float64(a.config.Strat.Default.CapitalStart),
-		TradingAccount: Account{Name: "Trading", Balance: float64(a.config.Strat.Default.CapitalStart)},
-		SavingsAccount: Account{Name: "Savings", Balance: 0},
+		TradingAccount: Account{
+			Name:    "Trading",
+			Balance: float64(a.config.Strat.Default.CapitalStart),
+		},
 	}
 
-	// Calculate monthly results
+	// Calculate results for each month
 	for month := 1; month <= months; month++ {
 		result := a.calculateMonthlyResult(stratConfig, month, plan)
 		plan.MonthlyResults = append(plan.MonthlyResults, result)
@@ -88,16 +90,127 @@ func (a *Analyzer) AnalyzeAllStrategies(months int) []*Plan {
 
 func (a *Analyzer) calculateMonthlyResult(stratConfig *config.StrategyConfig, month int, plan *Plan) MonthlyResult {
 	currentBalance := plan.TradingAccount.Balance
-	profitTarget := currentBalance * stratConfig.MonthlyProfitTarget
-	riskPerTrade := currentBalance * stratConfig.RiskPerTrade
+
+	cfg := a.getEffectiveConfig(stratConfig)
+
+	// Calculate monthly profit (reward per trade * number of wins)
+	rewardAmount := currentBalance * cfg.TradeRewardPct             // $100 profit per win (1% of 10k)
+	monthlyProfit := rewardAmount * float64(cfg.MonthTradesNetWins) // $1000 monthly (10 wins)
+
+	newBalance := currentBalance + monthlyProfit
+
+	plan.TradingAccount.Balance = newBalance
 
 	return MonthlyResult{
 		Month:           month,
 		StartingBalance: currentBalance,
-		EndingBalance:   currentBalance + profitTarget,
-		ProfitTarget:    profitTarget,
-		RiskPerTrade:    riskPerTrade,
+		EndingBalance:   newBalance,
+		ProfitTarget:    monthlyProfit,
+		RewardPerTrade:  currentBalance * cfg.TradeRewardPct,
+		NetWins:         cfg.MonthTradesNetWins,
 	}
+}
+
+// getEffectiveConfig returns the merged configuration values, using strategy-specific
+// values when present, falling back to defaults when not
+func (a *Analyzer) getEffectiveConfig(stratConfig *config.StrategyConfig) struct {
+	TradeRewardPct       float64
+	TradeRiskPct         float64
+	MonthTradesNetWins   int
+	MonthProfitTargetPct float64
+} {
+	// Start with hardcoded defaults
+	effective := struct {
+		TradeRewardPct       float64
+		TradeRiskPct         float64
+		MonthTradesNetWins   int
+		MonthProfitTargetPct float64
+	}{
+		TradeRewardPct:       0.01, // 1% default reward
+		TradeRiskPct:         0.01, // 1% default risk
+		MonthTradesNetWins:   10,   // 10 winning trades default
+		MonthProfitTargetPct: 0.10, // 10% monthly profit default
+	}
+
+	// Override with config defaults if present
+	if a.config.Strat.Default.TradeRewardPct != 0 {
+		effective.TradeRewardPct = a.config.Strat.Default.TradeRewardPct
+	}
+	if a.config.Strat.Default.TradeRiskPct != 0 {
+		effective.TradeRiskPct = a.config.Strat.Default.TradeRiskPct
+	}
+	if a.config.Strat.Default.MonthTradesNetWins != 0 {
+		effective.MonthTradesNetWins = a.config.Strat.Default.MonthTradesNetWins
+	}
+	if a.config.Strat.Default.MonthProfitTargetPct != 0 {
+		effective.MonthProfitTargetPct = a.config.Strat.Default.MonthProfitTargetPct
+	}
+
+	// Override with strategy-specific values if present
+	if stratConfig.TradeRewardPct != 0 {
+		effective.TradeRewardPct = stratConfig.TradeRewardPct
+	}
+	if stratConfig.TradeRiskPct != 0 {
+		effective.TradeRiskPct = stratConfig.TradeRiskPct
+	}
+	if stratConfig.MonthTradesNetWins != 0 {
+		effective.MonthTradesNetWins = stratConfig.MonthTradesNetWins
+	}
+	if stratConfig.MonthProfitTargetPct != 0 {
+		effective.MonthProfitTargetPct = stratConfig.MonthProfitTargetPct
+	}
+
+	return effective
+}
+
+func (a *Analyzer) GetEffectiveConfig(stratConfig *config.StrategyConfig) struct {
+	TradeRewardPct       float64
+	TradeRiskPct         float64
+	MonthTradesNetWins   int
+	MonthProfitTargetPct float64
+} {
+	// Start with hardcoded defaults
+	effective := struct {
+		TradeRewardPct       float64
+		TradeRiskPct         float64
+		MonthTradesNetWins   int
+		MonthProfitTargetPct float64
+	}{
+		TradeRewardPct:       0.01, // 1% default reward
+		TradeRiskPct:         0.01, // 1% default risk
+		MonthTradesNetWins:   10,   // 10 winning trades default
+		MonthProfitTargetPct: 0.10, // 10% monthly profit default
+	}
+
+	// Override with config defaults if present
+	if a.config.Strat.Default.TradeRewardPct != 0 {
+		effective.TradeRewardPct = a.config.Strat.Default.TradeRewardPct
+	}
+	if a.config.Strat.Default.TradeRiskPct != 0 {
+		effective.TradeRiskPct = a.config.Strat.Default.TradeRiskPct
+	}
+	if a.config.Strat.Default.MonthTradesNetWins != 0 {
+		effective.MonthTradesNetWins = a.config.Strat.Default.MonthTradesNetWins
+	}
+	if a.config.Strat.Default.MonthProfitTargetPct != 0 {
+		effective.MonthProfitTargetPct = a.config.Strat.Default.MonthProfitTargetPct
+	}
+
+	// Override with strategy-specific values if present
+	if stratConfig.TradeRewardPct != 0 {
+		effective.TradeRewardPct = stratConfig.TradeRewardPct
+	}
+	if stratConfig.TradeRiskPct != 0 {
+		effective.TradeRiskPct = stratConfig.TradeRiskPct
+	}
+	if stratConfig.MonthTradesNetWins != 0 {
+		effective.MonthTradesNetWins = stratConfig.MonthTradesNetWins
+	}
+	if stratConfig.MonthProfitTargetPct != 0 {
+		effective.MonthProfitTargetPct = stratConfig.MonthProfitTargetPct
+	}
+
+	return effective
 }
 
 // Implementation of calculateMonthlyResult and other helper methods...
