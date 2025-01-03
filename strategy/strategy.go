@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yourusername/projectname/config"
+	"github.com/tylerkatz/strater/config"
 )
 
 type Transaction struct {

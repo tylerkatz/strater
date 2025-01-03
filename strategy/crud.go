@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yourusername/projectname/config"
+	"github.com/tylerkatz/strater/config"
 )
 
 // Internal API function
@@ -88,4 +88,49 @@ func UpdateStrategy(cfg *config.Config, name string, profitTarget, riskPerTrade 
 		}
 	}
 	return fmt.Errorf("strategy '%s' not found", name)
+}
+
+// AddStrategyCmd handles the CLI command for adding a strategy
+func AddStrategyCmd(cmd *cobra.Command, args []string) error {
+	cfgPath := config.FindConfigFile()
+	cfg, err := config.LoadConfig(cfgPath)
+	if err != nil {
+		return err
+	}
+
+	if err := AddStrategy(cfg, args[0]); err != nil {
+		return err
+	}
+	return config.SaveConfig(cfg, cfgPath)
+}
+
+// RemoveStrategyCmd handles the CLI command for removing a strategy
+func RemoveStrategyCmd(cmd *cobra.Command, args []string) error {
+	cfgPath := config.FindConfigFile()
+	cfg, err := config.LoadConfig(cfgPath)
+	if err != nil {
+		return err
+	}
+
+	if err := RemoveStrategyFromConfig(cfg, args[0]); err != nil {
+		return err
+	}
+	return config.SaveConfig(cfg, cfgPath)
+}
+
+// UpdateStrategyCmd handles the CLI command for updating a strategy
+func UpdateStrategyCmd(cmd *cobra.Command, args []string) error {
+	cfgPath := config.FindConfigFile()
+	cfg, err := config.LoadConfig(cfgPath)
+	if err != nil {
+		return err
+	}
+
+	profitTarget, _ := cmd.Flags().GetFloat64("profit")
+	riskPerTrade, _ := cmd.Flags().GetFloat64("risk")
+
+	if err := UpdateStrategy(cfg, args[0], profitTarget, riskPerTrade); err != nil {
+		return err
+	}
+	return config.SaveConfig(cfg, cfgPath)
 }

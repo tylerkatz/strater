@@ -113,49 +113,57 @@ func SaveConfig(cfg *Config, path string) error {
 
 func GetConfigValue(cfg *Config, path string) error {
 	switch path {
-	case "strat.default.capital_start":
+	case KeyCapitalStart:
 		fmt.Printf("%d\n", cfg.Strat.Default.CapitalStart)
-	case "strat.default.trade_risk":
+	case KeyTradeRisk:
 		fmt.Printf("%.2f\n", cfg.Strat.Default.TradeRisk)
-	case "strat.default.month_profit_target":
+	case KeyMonthProfitTarget:
 		fmt.Printf("%.2f\n", cfg.Strat.Default.MonthProfitTarget)
-	case "strat.default.month_count":
+	case KeyMonthCount:
 		fmt.Printf("%d\n", cfg.Strat.Default.MonthCount)
 	default:
-		return fmt.Errorf("available config keys: strat.default.capital_start, strat.default.trade_risk, strat.default.month_profit_target, strat.default.month_count")
+		return fmt.Errorf("unknown config key: %s\nAvailable keys: %v", path, GetAvailableKeys())
 	}
 	return nil
 }
 
 func SetConfigValue(cfg *Config, path string, value string) error {
 	switch path {
-	case "strat.default.capital_start":
+	case KeyCapitalStart:
 		v, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return fmt.Errorf("invalid value for %s: %s - must be a number", path, value)
 		}
-		// Truncate to integer
 		cfg.Strat.Default.CapitalStart = int(v)
-	case "strat.default.trade_risk":
+	case KeyTradeRisk:
 		v, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return fmt.Errorf("invalid value for %s: %s", path, value)
+		}
+		if v > 1.0 {
+			return fmt.Errorf("trade risk cannot be more than 1 (100%%)")
 		}
 		cfg.Strat.Default.TradeRisk = v
-	case "strat.default.month_profit_target":
+	case KeyMonthProfitTarget:
 		v, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return fmt.Errorf("invalid value for %s: %s", path, value)
 		}
+		if v <= 0 {
+			return fmt.Errorf("month profit target must be positive")
+		}
 		cfg.Strat.Default.MonthProfitTarget = v
-	case "strat.default.month_count":
+	case KeyMonthCount:
 		v, err := strconv.Atoi(value)
 		if err != nil {
-			return fmt.Errorf("invalid value for %s: %s", path, value)
+			return fmt.Errorf("invalid value for %s: %s - must be an integer", path, value)
+		}
+		if v <= 0 {
+			return fmt.Errorf("month count must be positive")
 		}
 		cfg.Strat.Default.MonthCount = v
 	default:
-		return fmt.Errorf("available config keys: strat.default.capital_start, strat.default.trade_risk, strat.default.month_profit_target, strat.default.month_count")
+		return fmt.Errorf("unknown config key: %s\nAvailable keys: %v", path, GetAvailableKeys())
 	}
 	return nil
 }

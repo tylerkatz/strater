@@ -8,8 +8,8 @@ import (
 	"encoding/csv"
 	"encoding/json"
 
+	"github.com/tylerkatz/strater/strategy"
 	"github.com/xuri/excelize/v2"
-	"github.com/yourusername/projectname/strategy"
 )
 
 func Generate(plans []*strategy.Plan, format string, outputPath string) error {

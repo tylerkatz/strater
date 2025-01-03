@@ -1,4 +1,4 @@
-module github.com/yourusername/projectname
+module github.com/tylerkatz/strater
 
 go 1.21
 

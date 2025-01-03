@@ -4,92 +4,80 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yourusername/projectname/config"
+	"github.com/tylerkatz/strater/config"
+	"github.com/tylerkatz/strater/report"
+	"github.com/tylerkatz/strater/strategy"
 )
 
-var (
-	profitTarget float64
-	riskPerTrade float64
-)
+func newStrategyCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "strategy",
+		Short: "Manage trading strategies",
+	}
 
-func init() {
-	updateCmd := &cobra.Command{
-		Use:   "update [name]",
-		Short: "Update a strategy",
+	analyzeCmd := &cobra.Command{
+		Use:   "analyze [strategy-name]",
+		Short: "Analyze a trading strategy",
 		Args:  cobra.ExactArgs(1),
-		RunE:  updateStrategy,
+		RunE:  analyzeStrategy,
 	}
 
-	updateCmd.Flags().Float64VarP(&profitTarget, "profit", "p", 0.20, "Monthly profit target (as decimal)")
-	updateCmd.Flags().Float64VarP(&riskPerTrade, "risk", "r", 0.02, "Risk per trade (as decimal)")
+	analyzeCmd.Flags().Float64VarP(&initialCapital, "capital", "c", 0, "Initial capital for analysis")
+	analyzeCmd.Flags().IntVarP(&months, "months", "m", 12, "Number of months to project")
+	analyzeCmd.Flags().StringVarP(&outputFormat, "output", "o", "csv", "Output format (csv, xlsx, or json)")
+
+	cmd.AddCommand(
+		&cobra.Command{
+			Use:   "list",
+			Short: "List all strategies",
+			RunE:  strategy.ListStrategies,
+		},
+		&cobra.Command{
+			Use:   "add [name]",
+			Short: "Add a new strategy",
+			Args:  cobra.ExactArgs(1),
+			RunE:  strategy.AddStrategyCmd,
+		},
+		&cobra.Command{
+			Use:   "remove [name]",
+			Short: "Remove a strategy",
+			Args:  cobra.ExactArgs(1),
+			RunE:  strategy.RemoveStrategyCmd,
+		},
+		&cobra.Command{
+			Use:   "update [name]",
+			Short: "Update a strategy",
+			Args:  cobra.ExactArgs(1),
+			RunE:  strategy.UpdateStrategyCmd,
+		},
+		analyzeCmd,
+	)
+
+	return cmd
 }
 
-func addStrategy(_ *cobra.Command, args []string) error {
-	cfgPath := config.FindConfigFile()
+func analyzeStrategy(cmd *cobra.Command, args []string) error {
+	cfgPath := configPath
+	if cfgPath == "" {
+		cfgPath = config.FindConfigFile()
+	}
+
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("error loading config: %v", err)
 	}
 
-	name := args[0]
-	// Check if strategy already exists
-	for _, s := range cfg.Strategies {
-		if s.Name == name {
-			return fmt.Errorf("strategy '%s' already exists", name)
-		}
-	}
-
-	// Add new strategy
-	newStrategy := config.StrategyConfig{
-		Name:                name,
-		MonthlyProfitTarget: 0.20, // Default 20%
-		RiskPerTrade:        0.02, // Default 2%
-	}
-
-	cfg.Strategies = append(cfg.Strategies, newStrategy)
-	return config.SaveConfig(cfg, cfgPath)
-}
-
-func removeStrategy(_ *cobra.Command, args []string) error {
-	cfgPath := config.FindConfigFile()
-	cfg, err := config.LoadConfig(cfgPath)
+	analyzer := strategy.NewAnalyzer(cfg)
+	plan, err := analyzer.AnalyzeStrategy(args[0], months)
 	if err != nil {
-		return err
+		return fmt.Errorf("error analyzing strategy %s: %v", args[0], err)
 	}
 
-	name := args[0]
-	found := false
-	for i, s := range cfg.Strategies {
-		if s.Name == name {
-			cfg.Strategies = append(cfg.Strategies[:i], cfg.Strategies[i+1:]...)
-			found = true
-			break
-		}
+	outputPath := fmt.Sprintf("%s_analysis.%s", args[0], outputFormat)
+	if err := report.Generate([]*strategy.Plan{plan}, outputFormat, outputPath); err != nil {
+		return fmt.Errorf("error generating report: %v", err)
 	}
 
-	if !found {
-		return fmt.Errorf("strategy '%s' not found", name)
-	}
-
-	return config.SaveConfig(cfg, cfgPath)
-}
-
-func updateStrategy(cmd *cobra.Command, args []string) error {
-	cfgPath := config.FindConfigFile()
-	cfg, err := config.LoadConfig(cfgPath)
-	if err != nil {
-		return err
-	}
-
-	name := args[0]
-	for i, s := range cfg.Strategies {
-		if s.Name == name {
-			// Update strategy values
-			cfg.Strategies[i].MonthlyProfitTarget = profitTarget
-			cfg.Strategies[i].RiskPerTrade = riskPerTrade
-			return config.SaveConfig(cfg, cfgPath)
-		}
-	}
-
-	return fmt.Errorf("strategy '%s' not found", name)
+	fmt.Printf("Analysis complete: %s\n", outputPath)
+	return nil
 }
